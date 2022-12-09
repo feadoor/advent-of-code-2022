@@ -56,5 +56,5 @@ fn main() {
 
     let mut knot_positions_part_2 = vec![(0, 0); 10];
     let tail_positions_part_2 = tail_positions(&mut knot_positions_part_2, &movements);
-    println!("Part 1: {}", tail_positions_part_2.unique().count());
+    println!("Part 2: {}", tail_positions_part_2.unique().count());
 }

@@ -24,14 +24,6 @@ impl Instruction {
     }
 }
 
-fn cycle_values(program: &[Instruction]) -> impl Iterator<Item = isize> + '_ {
-    program.iter().scan(1, |state, instr| {
-        let values = repeat(*state).take(instr.cycles());
-        instr.apply_to(state);
-        Some(values)
-    }).flat_map(|i| i)
-}
-
 fn read_lines() -> impl Iterator<Item = String> {
     let file = File::open("inputs/10.txt").expect("input file not present");
     BufReader::new(file).lines().map(|l| l.expect("error reading from file"))
@@ -43,6 +35,14 @@ fn parse_line(line: &str) -> Instruction {
         "noop" => Instruction::Noop,
         _ => panic!("unexpected instruction"),
     }
+}
+
+fn cycle_values(program: &[Instruction]) -> impl Iterator<Item = isize> + '_ {
+    program.iter().scan(1, |state, instr| {
+        let values = repeat(*state).take(instr.cycles());
+        instr.apply_to(state);
+        Some(values)
+    }).flat_map(|i| i)
 }
 
 fn crt_line<I: Iterator<Item = isize>>(sprite_positions: &mut I) -> Option<String> {

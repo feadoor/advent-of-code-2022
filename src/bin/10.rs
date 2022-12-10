@@ -1,5 +1,6 @@
 use std::fs::File;
 use std::io::{BufRead, BufReader};
+use std::iter::repeat;
 
 enum Instruction {
     Addx(isize),
@@ -14,86 +15,21 @@ impl Instruction {
             Instruction::Noop    => 1,
         }
     }
-}
 
-#[derive(Clone, Copy)]
-struct ProgramState {
-    register: isize,
-}
-
-impl ProgramState {
-
-    fn new() -> Self {
-        Self { register: 1 }
-    }
-
-    fn apply_instruction(&mut self, instruction: &Instruction) {
-        match instruction {
-            Instruction::Addx(amount) => self.register += amount,
+    fn apply_to(&self, state: &mut isize) {
+        match self {
+            Instruction::Addx(amount) => *state += amount,
             Instruction::Noop         => {},
         }
     }
 }
 
-struct Executor<'a> {
-    state: ProgramState,
-    program_counter: usize,
-    cycles_in_current_instruction: usize,
-    program: &'a [Instruction],
-}
-
-impl<'a> Executor<'a> {
-
-    fn for_program(program: &'a [Instruction]) -> Self {
-        Self { 
-            state: ProgramState::new(),
-            program_counter: 0,
-            cycles_in_current_instruction: 0,
-            program,
-        }
-    }
-
-    fn is_finished(&self) -> bool {
-        self.program_counter >= self.program.len()
-    }
-
-    fn step(&mut self) {
-        if let Some(instruction) = self.program.get(self.program_counter) {
-            self.cycles_in_current_instruction += 1;
-            if self.cycles_in_current_instruction == instruction.cycles() {
-                self.state.apply_instruction(instruction);
-                self.cycles_in_current_instruction = 0;
-                self.program_counter += 1;
-            }
-        }
-    }
-
-    fn into_iter(self) -> ExecutorIter<'a> {
-        ExecutorIter { started: false, executor: self }
-    }
-}
-
-struct ExecutorIter<'a> {
-    started: bool,
-    executor: Executor<'a>,
-}
-
-impl<'a> Iterator for ExecutorIter<'a> {
-    type Item = ProgramState;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        if !self.started { 
-            self.started = true;
-            Some(self.executor.state)
-        } else {
-            if !self.executor.is_finished() {
-                self.executor.step();
-                Some(self.executor.state)
-            } else {
-                None
-            }
-        }
-    }
+fn cycle_values(program: &[Instruction]) -> impl Iterator<Item = isize> + '_ {
+    program.iter().scan(1, |state, instr| {
+        let values = repeat(*state).take(instr.cycles());
+        instr.apply_to(state);
+        Some(values)
+    }).flat_map(|i| i)
 }
 
 fn read_lines() -> impl Iterator<Item = String> {
@@ -119,11 +55,10 @@ fn crt_line<I: Iterator<Item = isize>>(sprite_positions: &mut I) -> Option<Strin
 fn main() {
     let program: Vec<_> = read_lines().map(|l| parse_line(&l)).collect();
 
-    let executor = Executor::for_program(&program);
-    let signal_strengths = executor.into_iter().enumerate().map(|(idx, state)| ((idx + 1) as isize) * state.register);
+    let signal_strengths = cycle_values(&program).enumerate().map(|(idx, value)| ((idx + 1) as isize) * value);
     println!("Part 1: {}", signal_strengths.skip(19).step_by(40).take(6).sum::<isize>());
 
-    let mut sprite_positions = Executor::for_program(&program).into_iter().map(|state| state.register);
+    let mut sprite_positions = cycle_values(&program);
     println!("Part 2:");
     while let Some(line) = crt_line(&mut sprite_positions) {
         println!("{}", line);

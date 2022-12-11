@@ -18,8 +18,6 @@ struct Monkey {
     items: VecDeque<usize>,
     operation: Operation,
     test: Test,
-    true_target: usize,
-    false_target: usize,
 }
 
 #[derive(Clone)]
@@ -30,31 +28,25 @@ enum Operation {
 }
 
 impl Operation {
-    fn apply_to(&self, target: usize) -> usize {
+    fn apply_to(&self, item: usize) -> usize {
         match self {
-            Operation::Add(amount)      => target + amount,
-            Operation::Multiply(amount) => target * amount,
-            Operation::Square           => target * target,
+            Operation::Add(amount)      => item + amount,
+            Operation::Multiply(amount) => item * amount,
+            Operation::Square           => item * item,
         }
     }
 }
 
 #[derive(Clone)]
-enum Test {
-    DivisibleBy(usize),
+struct Test {
+    modulus: usize,
+    true_target: usize,
+    false_target: usize,
 }
 
 impl Test {
-    fn apply_to(&self, target: usize) -> bool {
-        match self {
-            Test::DivisibleBy(divisor) => target % divisor == 0,
-        }
-    }
-
-    fn modulus(&self) -> usize {
-        match self {
-            Test::DivisibleBy(divisor) => *divisor,
-        }
+    fn get_target(&self, item: usize) -> usize {
+        if item % self.modulus == 0 { self.true_target } else { self.false_target }
     }
 }
 
@@ -64,10 +56,10 @@ enum WorryManager {
 }
 
 impl WorryManager {
-    fn apply_to(&self, target: usize) -> usize {
+    fn apply_to(&self, item: usize) -> usize {
         match self {
-            WorryManager::DivideBy(amount) => target / amount,
-            WorryManager::ModBy(amount)    => target % amount,
+            WorryManager::DivideBy(amount) => item / amount,
+            WorryManager::ModBy(amount)    => item % amount,
         }
     }
 }
@@ -106,12 +98,8 @@ fn operation(input: &str) -> IResult<&str, Operation> {
     on_line(preceded(tag("Operation: "), alt((add_operation, multiply_operation, square_operation))))(input)
 }
 
-fn divisible_by_test(input: &str) -> IResult<&str, Test> {
-    map(preceded(tag("divisible by "), number), Test::DivisibleBy)(input)
-}
-
-fn test(input: &str) -> IResult<&str, Test> {
-    on_line(preceded(tag("Test: "), divisible_by_test))(input)
+fn test_modulus(input: &str) -> IResult<&str, usize> {
+    on_line(preceded(tag("Test: divisible by "), number))(input)
 }
 
 fn true_target(input: &str) -> IResult<&str, usize> {
@@ -124,8 +112,12 @@ fn false_target(input: &str) -> IResult<&str, usize> {
 
 fn monkey(input: &str) -> IResult<&str, Monkey> {
     map(preceded(heading, 
-        tuple((starting_items, operation, test, true_target, false_target))
-    ), |(items, operation, test, true_target, false_target)| Monkey { items: VecDeque::from(items), operation, test, true_target, false_target } )(input)
+        tuple((starting_items, operation, test_modulus, true_target, false_target))
+    ), |(items, operation, test_modulus, true_target, false_target)| Monkey { 
+        items: VecDeque::from(items), 
+        operation, 
+        test: Test { modulus: test_modulus, true_target, false_target },
+    })(input)
 }
 
 fn parse(input: &str) -> Vec<Monkey> {
@@ -141,16 +133,13 @@ fn read_data() -> String {
 fn take_turn(monkeys: &mut [Monkey], index: usize, worry_manager: &WorryManager) {
     while let Some(mut item) = monkeys[index].items.pop_front() {
         item = worry_manager.apply_to(monkeys[index].operation.apply_to(item));
-        if monkeys[index].test.apply_to(item) {
-            monkeys[monkeys[index].true_target].items.push_back(item);
-        } else {
-            monkeys[monkeys[index].false_target].items.push_back(item);
-        }
+        let target = monkeys[index].test.get_target(item);
+        monkeys[target].items.push_back(item);
     }
 }
 
 fn modulus(monkeys: &[Monkey]) -> usize {
-    monkeys.iter().map(|monkey| monkey.test.modulus()).product()
+    monkeys.iter().map(|monkey| monkey.test.modulus).product()
 }
 
 fn inspection_counts(monkeys: &mut [Monkey], rounds: usize, worry_manager: &WorryManager) -> Vec<usize> {

@@ -42,7 +42,7 @@ fn cycle_values(program: &[Instruction]) -> impl Iterator<Item = isize> + '_ {
         let values = repeat(*state).take(instr.cycles());
         instr.apply_to(state);
         Some(values)
-    }).flat_map(|i| i)
+    }).flatten()
 }
 
 fn crt_line<I: Iterator<Item = isize>>(sprite_positions: &mut I) -> Option<String> {

@@ -71,28 +71,28 @@ fn number(input: &str) -> IResult<&str, usize> {
     map_res(recognize(digit1), str::parse)(input)
 }
 
-fn on_line<'a, O, E: ParseError<&'a str>, F: Parser<&'a str, O, E>>(f: F) -> impl Parser<&'a str, O, E> {
+fn on_line<'a, O, E: ParseError<&'a str>, F: Parser<&'a str, O, E>>(f: F) -> impl FnMut(&'a str) -> IResult<&'a str, O, E> {
     terminated(f, opt(line_ending))
 }
 
 fn dummy_directory(input: &str) -> IResult<&str, Option<(&str, Node)>> {
-    on_line(value(None, tuple((tag("dir"), space1, identifier)))).parse(input)
+    on_line(value(None, tuple((tag("dir"), space1, identifier))))(input)
 }
 
 fn file(input: &str) -> IResult<&str, Option<(&str, Node)>> {
-    on_line(map(tuple((number, space1, identifier)), |(size, _, name)| Some((name, Node::File(size))))).parse(input)
+    on_line(map(tuple((number, space1, identifier)), |(size, _, name)| Some((name, Node::File(size)))))(input)
 }
 
 fn cd_down(input: &str) -> IResult<&str, &str> {
-    on_line(preceded(tuple((tag("$ cd"), space1)), identifier)).parse(input)
+    on_line(preceded(tuple((tag("$ cd"), space1)), identifier))(input)
 }
 
 fn ls(input: &str) -> IResult<&str, ()> {
-    on_line(value((), tag("$ ls"))).parse(input)
+    on_line(value((), tag("$ ls")))(input)
 }
 
 fn cd_up(input: &str) -> IResult<&str, ()> {
-    on_line(value((), tuple((tag("$ cd"), space1, tag(".."))))).parse(input)
+    on_line(value((), tuple((tag("$ cd"), space1, tag("..")))))(input)
 }
 
 fn directory(input: &str) -> IResult<&str, Option<(&str, Node)>> {
@@ -112,7 +112,7 @@ fn directory(input: &str) -> IResult<&str, Option<(&str, Node)>> {
 }
 
 fn parse(input: &str) -> Node {
-    directory.parse(input).expect("failed to parse input").1.unwrap().1
+    directory(input).expect("failed to parse input").1.unwrap().1
 }
 
 // END NOM PARSING CODE

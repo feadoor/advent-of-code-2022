@@ -53,8 +53,7 @@ fn calculate_minimum_distances(elevations: &[Vec<u8>], start: Coordinate) -> Vec
     queue.push_back(start);
     distances[start.0][start.1] = Some(0);
 
-    while !queue.is_empty() {
-        let current_coordinate = queue.pop_front().unwrap();
+    while let Some(current_coordinate) = queue.pop_front() {
         let current_distance = distances[current_coordinate.0][current_coordinate.1].unwrap();
         for next_coordinate in neighbours(elevations, current_coordinate) {
             if let None = distances[next_coordinate.0][next_coordinate.1] {

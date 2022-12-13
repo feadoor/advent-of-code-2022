@@ -21,13 +21,7 @@ enum Packet {
 
 impl PartialEq for Packet {
     fn eq(&self, other: &Packet) -> bool {
-        use Packet::*;
-        match (self, other) {
-            (Number(a), Number(b)) => a.eq(b),
-            (Number(a), List(_b))  => List(vec![Number(*a)]).eq(other),
-            (List(_a), Number(b))  => self.eq(&List(vec![Number(*b)])),
-            (List(a), List(b))     => a.eq(b),
-        }
+        matches!(self.partial_cmp(other), Some(Ordering::Equal))
     }
 }
 

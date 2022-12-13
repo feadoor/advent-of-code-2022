@@ -14,7 +14,6 @@ use std::cmp::Ordering;
 use std::fs::File;
 use std::io::{BufRead, BufReader};
 
-#[derive(Clone)]
 enum Packet {
     Number(usize),
     List(Vec<Packet>),

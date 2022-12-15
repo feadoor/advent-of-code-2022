@@ -85,9 +85,7 @@ fn values_not_covered_by_sorted_ranges(bounds: Range, ranges: Vec<Range>) -> imp
     uncovered_at_start.chain(uncovered_in_middle.flatten()).chain(uncovered_at_end)
 }
 
-fn find_a_point_not_covered_by_constraints(bounds: (isize, isize, isize, isize), constraints: &[Constraint]) -> Option<(isize, isize)> {
-
-    let (min_x, max_x, min_y, max_y) = bounds;
+fn find_a_point_not_covered_by_constraints((min_coord, max_coord): (isize, isize), constraints: &[Constraint]) -> Option<(isize, isize)> {
 
     // Use a sweep-line algorithm with a diagonal sweep from top-left to bottom-right. Start by
     // obtaining a list of all of the sorted (x + y)-positions of top-left and bottom-right edges of the
@@ -95,13 +93,13 @@ fn find_a_point_not_covered_by_constraints(bounds: (isize, isize, isize, isize),
     let transfer_points: Vec<_> = constraints.iter()
         .map(|c| vec![c.top_left(), c.bottom_right() + 1])
         .flatten()
-        .filter(|&t| t > min_x + min_y)
+        .filter(|&t| t > 2 * min_coord)
         .sorted()
         .dedup()
         .collect();
 
     // Start sweeping!
-    let mut current_sweep_position = min_x + min_y;
+    let mut current_sweep_position = 2 * min_coord;
     let mut currently_included_constraints: Vec<_> = constraints.iter()
         .filter(|c| c.top_left() <= current_sweep_position && current_sweep_position <= c.bottom_right())
         .collect();
@@ -111,7 +109,11 @@ fn find_a_point_not_covered_by_constraints(bounds: (isize, isize, isize, isize),
         // Check for any uncovered points in (y - x) space at the current (x + y)-position of the sweep line
         let covered_ranges: Vec<_> = currently_included_constraints.iter().map(|c| (c.top_right(), c.bottom_left())).collect();
         let combined_coverage = union_of_ranges(&covered_ranges);
-        let bounds_range = (current_sweep_position - 2 * min(current_sweep_position - min_y, max_x), current_sweep_position - 2 * max(current_sweep_position - max_y, min_x));
+
+        // Restrict to values of (y - x) which will lead to a point within the bounded region, choosing the sweep 
+        // line position which leads to the largest such range
+        current_sweep_position = if transfer < min_coord + max_coord { transfer - 1 } else if current_sweep_position > min_coord + max_coord { current_sweep_position } else { min_coord + max_coord };
+        let bounds_range = (current_sweep_position - 2 * min(current_sweep_position - min_coord, max_coord), current_sweep_position - 2 * max(current_sweep_position - max_coord, min_coord));
         if let Some(v) = values_not_covered_by_sorted_ranges(bounds_range, combined_coverage).next() {
 
             // v is equal to (y - x) and current_sweep_position is equal to (x + y)
@@ -139,10 +141,10 @@ fn main() {
         .map(|c| c.nearest_beacon)
         .filter(|&b| b.1 == fixed_y_coordinate && value_contained_in_ranges(b.0, &combined_ranges))
         .unique()
-        .count() as isize;
-    println!("Part 1: {}", size_of_covered_area - known_beacons_in_covered_area);
+        .count();
+    println!("Part 1: {}", size_of_covered_area - known_beacons_in_covered_area as isize);
 
-    let bounds = (0, 4_000_000, 0, 4_000_000);
+    let bounds = (0, 4_000_000);
     if let Some((x, y)) = find_a_point_not_covered_by_constraints(bounds, &constraints) {
         println!("Part 2: {}", 4_000_000 * x + y);
     }

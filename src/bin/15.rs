@@ -77,8 +77,8 @@ fn value_contained_in_ranges(value: isize, ranges: &[Range]) -> bool {
 }
 
 fn values_not_covered_by_sorted_ranges(bounds: Range, ranges: Vec<Range>) -> impl Iterator<Item = isize> {
-    let uncovered_at_start  = bounds.0 .. ranges[0].0;
-    let uncovered_at_end    = ranges.last().unwrap().1 + 1 ..= bounds.1;
+    let uncovered_at_start  = bounds.0 .. ranges.get(0).unwrap_or(&bounds).0;
+    let uncovered_at_end    = ranges.last().unwrap_or(&bounds).1 + 1 ..= bounds.1;
     let uncovered_in_middle = ranges.into_iter().tuple_windows()
         .filter_map(move |(r1, r2)| if bounds.0 <= r1.1 + 1 && r1.1 + 1 <= bounds.1 { Some(r1.1 + 1 ..= min(r2.0 - 1, bounds.1)) } else { None });
 

@@ -95,16 +95,12 @@ fn find_possible_total_pressures_for_steps(steps: usize, flow_rates: &HashMap<St
     possible_pressures
 }
 
-fn best_pressure_from_two_disjoint_subsets(valves: &BTreeSet<String>, possible_pressures: &HashMap<BTreeSet<String>, usize>) -> usize {
+fn best_pressure_from_two_disjoint_subsets(possible_pressures: &HashMap<BTreeSet<String>, usize>) -> usize {
     let mut best_combined_pressure = 0;
-    for (first_subset, first_pressure) in possible_pressures.iter() {
-        let allowable_valves = valves.iter().filter(|&v| !first_subset.contains(v));
-        for second_subset in allowable_valves.powerset().map(|s| BTreeSet::from_iter(s.into_iter().map(|v| v.to_string()))) {
-            if let Some(second_pressure) = possible_pressures.get(&second_subset) {
-                best_combined_pressure = max(best_combined_pressure, first_pressure + second_pressure);
-            }
-        }
-    } 
+    for ((set1, pressure1), (set2, pressure2)) in possible_pressures.iter().tuple_combinations() {
+        let disjoint = if set1.len() < set2.len() { !set1.iter().any(|v| set2.contains(v)) } else { set2.iter().any(|v| set1.contains(v)) };
+        if disjoint { best_combined_pressure = max(best_combined_pressure, pressure1 + pressure2); }
+    }
     best_combined_pressure
 }
 
@@ -117,6 +113,5 @@ fn main() {
     println!("Part 1: {}", possible_pressures.values().max().unwrap());
 
     let possible_pressures = find_possible_total_pressures_for_steps(26, &flow_rates, &compressed_adjacencies);
-    let interesting_valves: BTreeSet<String> = valves.iter().filter(|&v| v.flow_rate > 0).map(|v| v.name.to_string()).collect();
-    println!("Part 2: {}", best_pressure_from_two_disjoint_subsets(&interesting_valves, &possible_pressures));
+    println!("Part 2: {}", best_pressure_from_two_disjoint_subsets(&possible_pressures));
 }

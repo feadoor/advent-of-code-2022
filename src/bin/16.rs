@@ -1,7 +1,9 @@
+use itertools::Itertools;
 use lazy_static::lazy_static;
 use regex::Regex;
 
-use std::collections::{HashMap, VecDeque};
+use std::cmp::max;
+use std::collections::{BTreeSet, HashMap, VecDeque};
 use std::fs::File;
 use std::io::{BufRead, BufReader};
 
@@ -69,36 +71,41 @@ fn compress_adjacencies(flow_rates: &HashMap<String, usize>, adjacencies: &HashM
     compressed_adjacencies
 }
 
-struct SearchState {
-    actor_idx: usize,
-    pressure_so_far: usize, 
-    used_valves: Vec<String>, 
-    steps_remaining: Vec<usize>, 
-    current_valves: Vec<String> 
-}
+fn find_possible_total_pressures_for_steps(steps: usize, flow_rates: &HashMap<String, usize>, compressed_adjacencies: &HashMap<String, HashMap<String, usize>>) -> HashMap<BTreeSet<String>, usize> {
 
-fn find_maximum_pressure_with_n_actors(n: usize, steps: usize, flow_rates: &HashMap<String, usize>, compressed_adjacencies: &HashMap<String, HashMap<String, usize>>) -> usize {
+    struct SearchState { pressure_so_far: usize, valves_opened: BTreeSet<String>, steps_remaining: usize, current_valve: String }
 
-    let mut stack = vec![SearchState { actor_idx: 0, pressure_so_far: 0, used_valves: Vec::new(), steps_remaining: vec![steps; n], current_valves: vec![STARTING_VALVE.to_string(); n] }];
-    let mut best_pressure = 0;
-    
-    while let Some(SearchState { actor_idx, pressure_so_far, used_valves, steps_remaining, current_valves }) = stack.pop() {
-        if pressure_so_far > best_pressure { best_pressure = pressure_so_far; }
-        let next_steps: Vec<_> = compressed_adjacencies[&current_valves[actor_idx]].iter().filter(|&(k, &v)| !used_valves.contains(k) && v < steps_remaining[actor_idx]).collect();
-        if !next_steps.is_empty() {
-            for (next_valve, steps_used) in next_steps {
-                let mut next_steps_remaining = steps_remaining.clone(); next_steps_remaining[actor_idx] -= steps_used + 1;
-                let mut next_pressure = pressure_so_far;                next_pressure += next_steps_remaining[actor_idx] * flow_rates[next_valve];
-                let mut next_used_valves = used_valves.clone();         next_used_valves.push(next_valve.to_string());
-                let mut next_current_valves = current_valves.clone();   next_current_valves[actor_idx] = next_valve.to_string();
-                stack.push(SearchState { actor_idx, pressure_so_far: next_pressure, used_valves: next_used_valves, steps_remaining: next_steps_remaining, current_valves: next_current_valves });
-            }
-        } else if actor_idx < n - 1 {
-            stack.push(SearchState { actor_idx: actor_idx + 1, pressure_so_far, used_valves, steps_remaining, current_valves });
+    let mut possible_pressures = HashMap::new();
+    let mut stack = vec![SearchState { pressure_so_far: 0, valves_opened: BTreeSet::new(), steps_remaining: steps, current_valve: STARTING_VALVE.to_string()} ];
+    while let Some(SearchState { pressure_so_far, valves_opened, steps_remaining, current_valve }) = stack.pop() {
+
+        // Update the best known pressure for this set of open valves
+        let current_best_pressure = *possible_pressures.get(&valves_opened).unwrap_or(&0);
+        possible_pressures.insert(valves_opened.clone(), max(pressure_so_far, current_best_pressure));
+
+        // Add all possible next states to the stack
+        for (next_valve, steps_used) in compressed_adjacencies[&current_valve].iter().filter(|&(k, &v)| !valves_opened.contains(k) && v < steps_remaining) {
+            let next_steps_remaining   = steps_remaining - steps_used - 1;
+            let next_pressure          = pressure_so_far + next_steps_remaining * flow_rates[next_valve];
+            let mut next_valves_opened = valves_opened.clone(); next_valves_opened.insert(next_valve.to_string());
+            stack.push(SearchState { pressure_so_far: next_pressure, valves_opened: next_valves_opened, steps_remaining: next_steps_remaining, current_valve: next_valve.to_string() });
         }
     }
 
-    best_pressure
+    possible_pressures
+}
+
+fn best_pressure_from_two_disjoint_subsets(valves: &BTreeSet<String>, possible_pressures: &HashMap<BTreeSet<String>, usize>) -> usize {
+    let mut best_combined_pressure = 0;
+    for (first_subset, first_pressure) in possible_pressures.iter() {
+        let allowable_valves = valves.iter().filter(|&v| !first_subset.contains(v));
+        for second_subset in allowable_valves.powerset().map(|s| BTreeSet::from_iter(s.into_iter().map(|v| v.to_string()))) {
+            if let Some(second_pressure) = possible_pressures.get(&second_subset) {
+                best_combined_pressure = max(best_combined_pressure, first_pressure + second_pressure);
+            }
+        }
+    } 
+    best_combined_pressure
 }
 
 fn main() {
@@ -106,6 +113,10 @@ fn main() {
     let (flow_rates, adjacencies) = collect_valves_as_flow_rates_and_adjacencies(&valves);
     let compressed_adjacencies = compress_adjacencies(&flow_rates, &adjacencies);
 
-    println!("Part 1: {}", find_maximum_pressure_with_n_actors(1, 30, &flow_rates, &compressed_adjacencies));
-    println!("Part 2: {}", find_maximum_pressure_with_n_actors(2, 26, &flow_rates, &compressed_adjacencies));
+    let possible_pressures = find_possible_total_pressures_for_steps(30, &flow_rates, &compressed_adjacencies);
+    println!("Part 1: {}", possible_pressures.values().max().unwrap());
+
+    let possible_pressures = find_possible_total_pressures_for_steps(26, &flow_rates, &compressed_adjacencies);
+    let interesting_valves: BTreeSet<String> = valves.iter().filter(|&v| v.flow_rate > 0).map(|v| v.name.to_string()).collect();
+    println!("Part 2: {}", best_pressure_from_two_disjoint_subsets(&interesting_valves, &possible_pressures));
 }

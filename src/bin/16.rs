@@ -98,8 +98,7 @@ fn find_possible_total_pressures_for_steps(steps: usize, flow_rates: &HashMap<St
 fn best_pressure_from_two_disjoint_subsets(possible_pressures: &HashMap<BTreeSet<String>, usize>) -> usize {
     let mut best_combined_pressure = 0;
     for ((set1, pressure1), (set2, pressure2)) in possible_pressures.iter().tuple_combinations() {
-        let disjoint = if set1.len() < set2.len() { !set1.iter().any(|v| set2.contains(v)) } else { set2.iter().any(|v| set1.contains(v)) };
-        if disjoint { best_combined_pressure = max(best_combined_pressure, pressure1 + pressure2); }
+        if set1.is_disjoint(&set2) { best_combined_pressure = max(best_combined_pressure, pressure1 + pressure2); }
     }
     best_combined_pressure
 }

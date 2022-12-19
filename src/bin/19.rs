@@ -66,8 +66,8 @@ fn parse_line(line: &str) -> Blueprint {
 
 fn maximise_geodes(blueprint: &Blueprint, time: usize) -> usize {
 
-    struct SearchState { time_remaining: usize, built_robots: HashMap<String, usize>, held_materials: HashMap<String, usize>, build_order: Vec<String> }
-    let mut stack = vec![SearchState { time_remaining: time, built_robots: HashMap::from([("ore".to_string(), 1)]), held_materials: HashMap::new(), build_order: Vec::new() }];
+    struct SearchState { time_remaining: usize, built_robots: HashMap<String, usize>, held_materials: HashMap<String, usize> }
+    let mut stack = vec![SearchState { time_remaining: time, built_robots: HashMap::from([("ore".to_string(), 1)]), held_materials: HashMap::new() }];
     let mut best_geodes = 0;
 
     let maximum_spending_power = blueprint.costs.values().flatten().fold(HashMap::new(), |mut acc, (n, m)| {
@@ -75,7 +75,7 @@ fn maximise_geodes(blueprint: &Blueprint, time: usize) -> usize {
         acc
     });
 
-    while let Some(SearchState { time_remaining, built_robots, held_materials, build_order }) = stack.pop() {
+    while let Some(SearchState { time_remaining, built_robots, held_materials }) = stack.pop() {
         
         let geodes_at_end = built_robots.get("geode").unwrap_or(&0) * time_remaining + held_materials.get("geode").unwrap_or(&0);
         best_geodes = max(best_geodes, geodes_at_end);
@@ -89,12 +89,10 @@ fn maximise_geodes(blueprint: &Blueprint, time: usize) -> usize {
             if time_required_to_build < time_remaining {
                 let mut next_materials = held_materials.clone(); 
                 let mut next_robots = built_robots.clone(); 
-                let mut next_build_order = build_order.clone();
                 for (material, count) in built_robots.iter() { *next_materials.entry(material.to_string()).or_insert(0) += count * time_required_to_build; }
                 for (count, material) in cost.iter()         { *next_materials.get_mut(material).unwrap() -= count; }
                 *next_robots.entry(material.to_string()).or_insert(0) += 1;
-                next_build_order.push(material.to_string());
-                stack.push(SearchState { time_remaining: time_remaining - time_required_to_build, built_robots: next_robots, held_materials: next_materials, build_order: next_build_order });
+                stack.push(SearchState { time_remaining: time_remaining - time_required_to_build, built_robots: next_robots, held_materials: next_materials });
             }
         }
     }
@@ -104,7 +102,7 @@ fn maximise_geodes(blueprint: &Blueprint, time: usize) -> usize {
 
 fn main() {
     let blueprints = read_lines().map(|l| parse_line(&l)).collect_vec();
-    
+
     let quality_levels = blueprints.iter().map(|b| b.id * maximise_geodes(&b, 24));
     println!("Part 1: {}", quality_levels.sum::<usize>());
 

@@ -59,14 +59,14 @@ fn comparison_result_with_initial_number(humn: usize, left: &str, right: &str, m
 fn binary_search_for_equality(left: &str, right: &str, monkeys: &mut HashMap<String, Monkey>) -> usize {
     let mut humn = 1; let initial_result = comparison_result_with_initial_number(humn, left, right, monkeys);
     while comparison_result_with_initial_number(humn, left, right, monkeys) == initial_result { humn *= 2; }
-    let (mut lo, mut hi) = (humn / 2, humn); loop {
+    let (mut lo, mut hi) = (humn / 2, humn); while lo != hi {
         let mid = (lo + hi) / 2;
         match comparison_result_with_initial_number(mid, left, right, monkeys) {
-            Ordering::Equal          => return mid,
             x if x == initial_result => (lo, hi) = (mid + 1, hi),
             _                        => (lo, hi) = (lo, mid),
         }
     }
+    lo
 }
 
 fn main() {
